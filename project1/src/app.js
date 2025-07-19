@@ -21,4 +21,26 @@ app.get("/notes",(req,res)=>{
    
 })
 
+/*DELETE method*/
+
+app.delete("/notes/:index", (req, res)=>{
+    const index = req.params.index
+
+    delete notes[index];
+
+    res.status(200).json({
+        message: "notes deleted successfully"
+    })
+})
+
+app.patch("/notes/:index", (req,res)=>{
+    const index = req.params.index
+    const {title} = req.body;
+    notes[index].title = title
+
+    res.status(200).json({
+        message : "notes updated successfully"
+    })
+})
+
 module.exports = app

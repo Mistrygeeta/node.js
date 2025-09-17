@@ -1,7 +1,7 @@
 const userModel = require("../models/user.model")
 const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
-
+const cacheClient = require("../services/cache.service")
 
 
 async function registerController(req, res) {
@@ -23,7 +23,7 @@ async function registerController(req, res) {
             password: hashedPassword
         })
 
-        const token =jwt.sign({id: user_id},process.env.JWT-SECRET,{
+        const token =jwt.sign({id: newUser._id},process.env.JWT_SECRET,{
             expiresIn:"1h"
         });
 
@@ -43,5 +43,67 @@ async function registerController(req, res) {
 };
 
 
+async function loginController(req, res) {
+    try {
+        const {email, password} = req.body
 
-module.exports = {registerController}
+        if(!email || !password){
+            return res.status(422).json({
+                message : "All field are required"
+            })
+        };
+
+        const user = await userModel.findOne({email})
+        if(!user){
+            return res.status(404).json({
+                message : "user not found"
+            })
+        };
+        const checkPassword = await bcrypt.compare(password,user.password);
+        if(!checkPassword){
+            return res.status(401).json({
+                message : "inavlid credentials"
+            })
+        }
+
+        const token = jwt.sign({id: user._id},process.env.JWT_SECRET,{
+            expiresIn: "1h"
+        })
+        res.cookie("ticket", token)
+
+        return res.status(200).json({
+            message : "user logged in successfully"
+        })
+    } catch (error) {
+        return res.status(500).json({
+            message : "Internal server error"
+        })
+    }
+    
+};
+
+async function logoutController(req, res) {
+    try {
+        const token = req.cookies.ticket;
+
+        if(!token){
+            return res.status(401).json({
+                message : " token not provided"
+            })
+        };
+
+        await cacheClient.set(token, "blacklisted")
+
+        res.clearCookie("ticket")
+        return res.status(200).json({
+            message : "user logged out successfully"
+        })
+    } catch (error) {
+        return res.status(500).json({
+            message : "Internal server error"
+        })
+        
+    }
+    
+};
+module.exports = {registerController,loginController,logoutController}
